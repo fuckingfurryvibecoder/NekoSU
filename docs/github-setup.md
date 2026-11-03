@@ -110,7 +110,7 @@ and install the APK. Do **not** re-sign the APK with a different key.
 
 ## Updating the update-checker links
 
-Two places contain the repository path, replace `nekosu/NekoSU` with your real
+Two places contain the repository path, replace `fuckingfurryvibecoder/NekoSU` with your real
 `owner/name`:
 
 - `manager/app/src/main/java/org/bakasu/bakasu/data/update/ManagerUpdateRepository.kt` → `REPOSITORY`

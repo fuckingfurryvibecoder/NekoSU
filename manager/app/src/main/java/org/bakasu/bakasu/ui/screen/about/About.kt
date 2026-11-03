@@ -180,7 +180,7 @@ fun AboutScreen() {
                             icon = Icons.TwoTone.Code,
                             title = stringResource(R.string.get_source_code),
                             description = stringResource(R.string.get_source_code_detail),
-                            onClick = { uriHandler.openUri("https://github.com/nekosu/NekoSU") },
+                            onClick = { uriHandler.openUri("https://github.com/fuckingfurryvibecoder/NekoSU") },
                         )
                     }
                     item {
@@ -188,7 +188,7 @@ fun AboutScreen() {
                             icon = Icons.TwoTone.Group,
                             title = stringResource(R.string.join_telegram_group),
                             description = stringResource(R.string.join_telegram_group_detail),
-                            onClick = { uriHandler.openUri("https://github.com/nekosu/NekoSU/issues") },
+                            onClick = { uriHandler.openUri("https://github.com/fuckingfurryvibecoder/NekoSU/issues") },
                         )
                     }
                     item {

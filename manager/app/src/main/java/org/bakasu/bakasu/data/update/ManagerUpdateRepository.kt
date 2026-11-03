@@ -18,7 +18,7 @@ class ManagerUpdateRepository(
         const val UPDATE_CALL_TIMEOUT_SECONDS = 8L
         const val TAG = "ManagerUpdateRepository"
         // NekoSU: change this to your GitHub "owner/repository" once the repo exists.
-        const val REPOSITORY = "nekosu/NekoSU"
+        const val REPOSITORY = "fuckingfurryvibecoder/NekoSU"
         const val WORKFLOW_FILE = "build-manager.yml"
         const val BRANCH = "main"
         const val RELEASE_ARTIFACT = "Manager-release"
@@ -31,7 +31,7 @@ class ManagerUpdateRepository(
     }
 
     private val managerApkPattern = Regex(
-        "^NekoSU_(.+)_(\\d+)-(arm64-v8a|armeabi-v7a|x86_64|universal)-release\\.apk$",
+        "^NekoSU_(.+)_(\\d+)(?:-(arm64-v8a|armeabi-v7a|x86_64|universal))?-release\\.apk$",
     )
     private val commitCountLinkPattern = Regex("""[?&]page=(\d+)>; rel="last"""")
 

@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="../../releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/nekosu/NekoSU?style=flat-square"></a>
-  <a href="../../actions/workflows/release.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/nekosu/NekoSU/release.yml?style=flat-square"></a>
+  <a href="../../releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/fuckingfurryvibecoder/NekoSU?style=flat-square"></a>
+  <a href="../../actions/workflows/release.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/fuckingfurryvibecoder/NekoSU/release.yml?style=flat-square"></a>
   <img alt="License" src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square">
   <img alt="Android" src="https://img.shields.io/badge/Android-12%E2%80%9317-green?style=flat-square">
 </p>
