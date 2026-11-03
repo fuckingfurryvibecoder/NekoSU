@@ -5,10 +5,12 @@
 #ifndef KERNELSU_KSU_H
 #define KERNELSU_KSU_H
 
-#include <cstdint>
+#include "prelude.h"
+#include <stdint.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/prctl.h>
-#include <utility>
+#include <sys/syscall.h>
 
 #include "uapi/ksu.h"
 
@@ -24,28 +26,41 @@ bool is_safe_mode();
 
 bool is_lkm_mode();
 
-bool is_lkm_bundled();
+bool is_manager();
 
 bool is_late_load_mode();
 
-bool is_manager();
+bool is_lkm_bundled();
 
 bool is_pr_build();
 
-using p_key_t = char[KSU_MAX_PACKAGE_NAME];
+void get_full_version(char* buff);
 
-bool set_app_profile(const app_profile *profile);
+bool set_app_profile(const struct app_profile *profile);
 
-int get_app_profile(app_profile *profile);
+int get_app_profile(struct app_profile* profile);
+
+void get_hook_type(char *buff);
+
+int get_kernel_patch_implement();
+
+bool set_dynamic_manager(unsigned int size, const char* hash);
+
+bool get_dynamic_manager(struct ksu_dynamic_manager_cmd* config);
+
+bool clear_dynamic_manager();
 
 // Su compat
 bool set_su_enabled(bool enabled);
-
 bool is_su_enabled();
+
+// sulog
+bool is_sulog_enabled();
+
+bool set_sulog_enabled(bool enabled);
 
 // Kernel umount
 bool set_kernel_umount_enabled(bool enabled);
-
 bool is_kernel_umount_enabled();
 
 // SELinux hide
@@ -53,14 +68,15 @@ int set_selinux_hide_enabled(bool enabled);
 
 bool is_selinux_hide_enabled();
 
+bool get_managers_list(struct ksu_get_managers_cmd **out_cmd);
 bool get_allow_list(struct ksu_new_get_allow_list_cmd *);
 
-inline std::pair<int, int> legacy_get_info() {
-    int32_t version = -1;
-    int32_t flags = 0;
-    int32_t result = 0;
-    prctl(0xDEADBEEF, 2, &version, &flags, &result);
-    return {version, flags};
-}
+// Legacy Compatible
+struct ksu_version_info legacy_get_info();
+
+struct ksu_version_info {
+    int32_t version;
+    int32_t flags;
+};
 
 #endif //KERNELSU_KSU_H

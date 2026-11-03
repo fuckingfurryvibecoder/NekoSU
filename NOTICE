@@ -1,0 +1,76 @@
+NekoSU
+======
+
+NekoSU is a custom Android root manager and kernel module for Samsung devices.
+It combines a Baka-SU style manager UI with a Samsung-aware KernelSU kernel
+engine (KDP / RKP / DEFEX bypass, late-load).
+
+This product includes software developed by the following projects.
+
+--------------------------------------------------------------------------
+1. KernelSU
+--------------------------------------------------------------------------
+Source:  https://github.com/tiann/KernelSU
+License: GNU General Public License v3.0
+
+The kernel module (`kernel/`), the userspace daemon (`userspace/ksud`,
+`userspace/ksuinit`), the UAPI headers (`uapi/`) and the low-level parts of
+the manager (`manager/app/src/main/cpp/`) are derived from KernelSU.
+
+Copyright (C) KernelSU contributors.
+
+--------------------------------------------------------------------------
+2. KernelSU Samsung fork (diabl0w)
+--------------------------------------------------------------------------
+Source:  https://github.com/diabl0w/KernelSU
+License: GNU General Public License v3.0
+
+Samsung compatibility layer used by NekoSU:
+  - `kernel/compat/kdp.c`      — Knox Defender Platform bypass
+  - `kernel/compat/rkp.c`      — Real-time Kernel Protection bypass
+  - `kernel/compat/defex.c`    — DEFEX bypass
+  - `kernel/compat/jailbreak.c`, `kernel/compat/jailbreak.h`
+  - Samsung-specific changes in `kernel/core/init.c`,
+    `kernel/feature/selinux_hide.c`, `kernel/hook/**`,
+    `kernel/feature/sucompat.c`
+  - userspace `late-load --soft-reboot` support
+
+Copyright (C) diabl0w and contributors.
+
+--------------------------------------------------------------------------
+3. BakaSU
+--------------------------------------------------------------------------
+Source:  https://github.com/Baka-SU/BakaSU
+License: GNU General Public License v3.0
+
+The NekoSU manager application (`manager/`, excluding the visual assets
+listed below) is derived from BakaSU: application architecture, Compose UI,
+navigation, screens, theming engine, module/superuser/settings flows.
+
+Copyright (C) BakaSU contributors.
+
+NOTE: The following files in BakaSU are NOT covered by GPL-3.0 and are
+licensed All Rights Reserved by their author (@OukaroMF):
+  - `docs/BakaSU_Clean.svg`
+  - `docs/BakaSU_Full.svg`
+  - `manager/app/src/main/res/drawable/ic_launcher_foreground.xml`
+
+NekoSU does NOT include, copy, modify or derive from any of those files.
+The NekoSU launcher icon is an original work created for this project.
+
+--------------------------------------------------------------------------
+4. NekoSU original assets
+--------------------------------------------------------------------------
+`manager/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`
+`manager/app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png`
+
+Original artwork made for NekoSU. Distributed under GPL-3.0 together with
+the rest of this repository.
+
+--------------------------------------------------------------------------
+License of the combined work
+--------------------------------------------------------------------------
+NekoSU as a whole is distributed under the GNU General Public License
+version 3. See the `LICENSE` file. Because it contains GPL-3.0 code, the
+complete corresponding source code must be made available to anybody who
+receives a binary build.

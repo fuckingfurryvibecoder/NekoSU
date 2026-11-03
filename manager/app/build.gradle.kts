@@ -1,18 +1,16 @@
 @file:Suppress("UnstableApiUsage")
 
-import com.google.protobuf.gradle.id
-
 plugins {
     alias(libs.plugins.agp.app)
+    alias(libs.plugins.androidx.baselineprofile)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.lsplugin.apksign)
-    alias(libs.plugins.protobuf)
+    alias(libs.plugins.aboutLibraries)
     id("kotlin-parcelize")
 }
 
 val androidCompileSdkVersion = rootProject.extra["androidCompileSdkVersion"] as Int
-val androidCompileSdkVersionMinor = rootProject.extra["androidCompileSdkVersionMinor"] as Int
 val androidCompileNdkVersion = rootProject.extra["androidCompileNdkVersion"] as String
 val androidBuildToolsVersion = rootProject.extra["androidBuildToolsVersion"] as String
 val androidMinSdkVersion = rootProject.extra["androidMinSdkVersion"] as Int
@@ -21,12 +19,8 @@ val androidSourceCompatibility = rootProject.extra["androidSourceCompatibility"]
 val androidTargetCompatibility = rootProject.extra["androidTargetCompatibility"] as JavaVersion
 val managerVersionCode = rootProject.extra["managerVersionCode"] as Int
 val managerVersionName = rootProject.extra["managerVersionName"] as String
-
-val isPrBuild = project.findProperty("IS_PR_BUILD")?.toString()?.toBoolean() ?: false
-val defaultManagerPackageName = if (isPrBuild) "me.weishu.kernelsu.pr" else "me.weishu.kernelsu"
-val defaultManagerName = if (isPrBuild) "KernelSU PR" else "KernelSU"
-val managerPackageName = project.findProperty("KSU_PACKAGE_NAME")?.toString() ?: defaultManagerPackageName
-val managerName = project.findProperty("KSU_NAME")?.toString() ?: defaultManagerName
+val managerPackageName = rootProject.extra["managerPackageName"] as String
+val managerName = rootProject.extra["managerName"] as String
 
 apksign {
     storeFileProperty = "KEYSTORE_FILE"
@@ -35,33 +29,18 @@ apksign {
     keyPasswordProperty = "KEY_PASSWORD"
 }
 
-protobuf {
-    protoc {
-        artifact = libs.protobuf.protoc.get().toString()
-    }
-    generateProtoTasks {
-        ofNonTest().forEach { task ->
-            task.builtins {
-                id("java") {
-                    option("lite")
-                }
-                id("kotlin") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
-
 val baseCFlags = listOf(
     "-Wall", "-Qunused-arguments", "-fvisibility=hidden", "-fvisibility-inlines-hidden",
     "-fno-exceptions", "-fno-stack-protector", "-fomit-frame-pointer",
-    "-Wno-builtin-macro-redefined", "-Wno-unused-value", "-D__FILE__=__FILE_NAME__"
+    "-Wno-builtin-macro-redefined", "-Wno-unused-value", "-D__FILE__=__FILE_NAME__",
 )
 val baseCppFlags = baseCFlags + "-fno-rtti"
 
+val isReleaseTask =
+    project.gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+
 android {
-    namespace = "me.weishu.kernelsu"
+    namespace = "org.bakasu.bakasu"
 
     buildTypes {
         debug {
@@ -82,8 +61,13 @@ android {
                     arguments += "-DCMAKE_BUILD_TYPE=Release"
 
                     val releaseFlags = listOf(
-                        "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
-                        "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-Wl,--exclude-libs,ALL"
+                        "-flto",
+                        "-ffunction-sections",
+                        "-fdata-sections",
+                        "-Wl,--gc-sections",
+                        "-fno-unwind-tables",
+                        "-fno-asynchronous-unwind-tables",
+                        "-Wl,--exclude-libs,ALL",
                     )
                     val configFlags = listOf("-Oz", "-DNDEBUG").joinToString(" ")
 
@@ -93,7 +77,7 @@ android {
                     arguments += listOf(
                         "-DCMAKE_CXX_FLAGS_RELEASE=$configFlags",
                         "-DCMAKE_C_FLAGS_RELEASE=$configFlags",
-                        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,--icf=all -s -Wl,--hash-style=sysv -Wl,-z,norelro"
+                        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,--icf=all -s -Wl,--hash-style=sysv -Wl,-z,norelro",
                     )
                 }
             }
@@ -109,12 +93,19 @@ android {
     }
 
     packaging {
-        dex {
-            useLegacyPackaging = true
-        }
         jniLibs {
             useLegacyPackaging = true
-            excludes += "lib/*/libandroidx.graphics.path.so"
+        }
+        resources {
+            if (isReleaseTask) {
+                // https://stackoverflow.com/a/58956288
+                // It will break Layout Inspector, but it's unused for release build.
+                excludes += "META-INF/*.version"
+            }
+            // https://github.com/Kotlin/kotlinx.coroutines?tab=readme-ov-file#avoiding-including-the-debug-infrastructure-in-the-resulting-apk
+            excludes += "DebugProbesKt.bin"
+            // https://issueantenna.com/repo/kotlin/kotlinx.coroutines/issues/3158
+            excludes += "kotlin-tooling-metadata.json"
         }
     }
 
@@ -132,14 +123,10 @@ android {
     androidResources {
         generateLocaleConfig = true
     }
-    compileSdk {
-        version =
-            release(androidCompileSdkVersion) {
-                minorApiLevel = androidCompileSdkVersionMinor
-            }
-    }
-    buildToolsVersion = androidBuildToolsVersion
+
+    compileSdk = androidCompileSdkVersion
     ndkVersion = androidCompileNdkVersion
+    buildToolsVersion = androidBuildToolsVersion
 
     defaultConfig {
         minSdk = androidMinSdkVersion
@@ -148,6 +135,7 @@ android {
         versionName = managerVersionName
         applicationId = managerPackageName
 
+        val isPrBuild = rootProject.extra["isPrBuild"] as Boolean
         buildConfigField("boolean", "IS_PR_BUILD", isPrBuild.toString())
         resValue("string", "app_name", managerName)
 
@@ -160,7 +148,16 @@ android {
         }
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64", "riscv64")
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = false
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = true
         }
     }
 
@@ -175,82 +172,95 @@ android {
     }
 }
 
-androidComponents {
-    onVariants(selector().withBuildType("release")) {
-        it.packaging.resources.excludes.addAll(listOf("META-INF/**", "kotlin/**", "**.bin"))
-    }
+baselineProfile {
+    mergeIntoMain = true
+    saveInSrc = true
+    automaticGenerationDuringBuild = false
 }
 
 base {
     archivesName.set(
-        "${managerName.replace(" ", "_")}_${managerVersionName}_${managerVersionCode}"
+        "NekoSU_${managerVersionName}_$managerVersionCode",
     )
 }
 
+aboutLibraries {
+    library {
+        // Enable the duplication mode, allows to merge, or link dependencies which relate
+        duplicationMode = com.mikepenz.aboutlibraries.plugin.DuplicateMode.MERGE
+        // Configure the duplication rule, to match "duplicates" with
+        duplicationRule = com.mikepenz.aboutlibraries.plugin.DuplicateRule.SIMPLE
+    }
+}
+
 dependencies {
+    lintChecks(project(":lint-rules"))
+    baselineProfile(project(":baselineprofile"))
+
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.compose.viewmodel)
+
+    implementation(libs.gson)
+    implementation(libs.commons.compress)
+    implementation(libs.xz)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.profileinstaller)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.compose.foundation)
 
+    implementation(libs.androidx.compose.runtime.tracing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.navigationevent.compose)
+
+    implementation(libs.miuix.blur)
+    implementation(libs.miuix.nav)
+
+    implementation(libs.aboutlibraries.core)
+    implementation(libs.aboutlibraries.compose.m3)
 
     implementation(libs.com.github.topjohnwu.libsu.core)
     implementation(libs.com.github.topjohnwu.libsu.service)
     implementation(libs.com.github.topjohnwu.libsu.io)
 
+    implementation(libs.material.kolor)
+    implementation(libs.monet.compat)
+    implementation(libs.material.components)
+    implementation(libs.androidx.palette.ktx)
+    implementation(libs.capsule)
+
     implementation(libs.dev.rikka.rikkax.parcelablelist)
+
+    implementation(libs.io.coil.kt.coil.compose)
+    implementation(libs.ucrop)
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 
-    implementation(libs.commonmark)
-    implementation(libs.commonmark.ext.gfm.tables)
-    implementation(libs.commonmark.ext.gfm.strikethrough)
-    implementation(libs.commonmark.ext.autolink)
-    implementation(libs.commonmark.ext.task.list.items)
+    implementation(libs.me.zhanghai.android.appiconloader)
+    implementation(libs.me.zhanghai.android.appiconloader.coil)
+    implementation(libs.org.lsposed.hiddenapibypass)
 
+    implementation(libs.markdown)
+    implementation(libs.markwon.tables)
     implementation(libs.androidx.webkit)
 
     implementation(libs.lsposed.cxx)
 
-    implementation(libs.hiddenapibypass)
-
-    implementation(libs.miuix.ui)
-    implementation(libs.miuix.icons)
-    implementation(libs.miuix.nav)
-    implementation(libs.miuix.preference)
-    implementation(libs.miuix.blur)
-
-    implementation(platform(libs.okhttp.bom))
-    implementation(libs.okhttp)
-
-    implementation(libs.material.kolor)
-
-    implementation(libs.appiconloader)
-
-    implementation(libs.commons.compress)
-    implementation(libs.xz)
-    implementation(libs.protobuf.kotlin.lite)
-
-    testImplementation(libs.junit)
-}
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.addAll(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
-        )
-    }
+    implementation(libs.accompanist.drawablepainter)
 }

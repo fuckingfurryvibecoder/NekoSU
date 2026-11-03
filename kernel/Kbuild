@@ -134,12 +134,12 @@ $(info -- KSU_NEW_DCACHE_FLUSH: $(KSU_NEW_DCACHE_FLUSH))
 
 KSU_IS_PR_BUILD ?= 0
 ifeq ($(KSU_IS_PR_BUILD),0)
-KSU_PACKAGE_NAME ?= me.weishu.kernelsu
+KSU_PACKAGE_NAME ?= dev.nekosu
 else
-KSU_PACKAGE_NAME ?= me.weishu.kernelsu.pr
+KSU_PACKAGE_NAME ?= dev.nekosu.pr
 endif
-KSU_EXPECTED_SIZE ?= 0x30c
-KSU_EXPECTED_HASH ?= 14296df529682e1ada0a4a37f2cab5751f0951706051435394d597168f45dd8b
+KSU_EXPECTED_SIZE ?= 0x348
+KSU_EXPECTED_HASH ?= d67570bac88c7192c196451904b854e87431e0233376549753658ccfeb311776
 
 $(info -- KernelSU Manager package name: $(KSU_PACKAGE_NAME))
 $(info -- KernelSU Manager signature size: $(KSU_EXPECTED_SIZE))

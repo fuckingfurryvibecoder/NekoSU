@@ -1,71 +1,121 @@
 name: Release
+
 on:
   push:
     tags:
-      - "samsung-v*"
+      - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  prepare:
+    name: Prepare signing info
+    runs-on: ubuntu-latest
+    outputs:
+      expected_size: ${{ steps.cert.outputs.size }}
+      expected_hash: ${{ steps.cert.outputs.hash }}
+    steps:
+      - name: Compute certificate size and hash
+        id: cert
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -e
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::KEYSTORE secret is not set"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > release.jks
+          keytool -exportcert -keystore release.jks -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD" -file release.der
+          SIZE_DEC=$(stat -c%s release.der)
+          echo "size=$(printf '0x%04x' $SIZE_DEC)" >> $GITHUB_OUTPUT
+          echo "hash=$(sha256sum release.der | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "Certificate size: $SIZE_DEC bytes"
+
+  build-lkm:
+    name: Build kernelsu.ko
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        kmi:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
+          - android17-6.18
+    uses: ./.github/workflows/ddk-lkm.yml
+    with:
+      kmi: ${{ matrix.kmi }}
+      package_name: dev.nekosu
+      expected_size: ${{ needs.prepare.outputs.expected_size }}
+      expected_hash: ${{ needs.prepare.outputs.expected_hash }}
+
+  build-ksud:
+    name: Build ksud
+    uses: ./.github/workflows/ksud.yml
+    with:
+      target: aarch64-linux-android
+
   build-manager:
+    name: Build NekoSU APK
+    needs: build-ksud
     uses: ./.github/workflows/build-manager.yml
     secrets: inherit
-  release:
-    needs:
-      - build-manager
+
+  publish:
+    name: Publish release
+    needs: [build-lkm, build-manager]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v8
 
-      - name: Rename ksud
+      - name: Collect files
         run: |
-          mkdir -p ksud
-          for dir in ./ksud-*; do
-            if [ -d "$dir" ]; then
-                echo "----- Rename $dir -----"
-                ksud_platform_name=$(basename "$dir")
-                if [ -f "$dir/ksud" ]; then
-                  mv "$dir/ksud" "ksud/$ksud_platform_name"
-                elif [ -f "$dir/ksud.exe" ]; then
-                  mv "$dir/ksud.exe" "ksud/$ksud_platform_name.exe"
-                fi
-            fi
-          done
+          set -e
+          mkdir -p dist
+          find . -name "*.apk" -exec cp -f {} dist/ \;
+          find . -name "*_kernelsu.ko" -exec cp -f {} dist/ \;
+          cd dist
+          ls -la
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
-      - name: Rename ksuinit
-        run: |
-          mkdir -p ksuinit
-          for dir in ./ksuinit-*; do
-            if [ -d "$dir" ]; then
-                echo "----- Rename $dir -----"
-                ksuinit_platform_name=$(basename "$dir")
-                if [ -f "$dir/ksuinit" ]; then
-                  mv "$dir/ksuinit" "ksuinit/$ksuinit_platform_name"
-                fi
-            fi
-          done
-
-      - name: Rename lkm
-        run: |
-          mkdir -p lkm
-          for dir in ./*-android*-lkm; do
-            if [ -d "$dir" ]; then
-                echo "----- Rename $dir -----"
-                lkm_platform_name=$(basename "$dir")
-                lkm_platform_name="lkm-${lkm_platform_name%-lkm}_kernelsu.ko"
-                KO="$(ls $dir/*_kernelsu.ko)"
-                mv "$KO" "lkm/$lkm_platform_name"
-            fi
-          done
-
-      - name: Display structure of downloaded files
-        run: ls -R
-
-      - name: release
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
+          name: NekoSU ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
           files: |
-            manager/*.apk
-            lkm/lkm-*_kernelsu.ko
-            ksud/ksud-*
-            ksuinit/*
+            dist/*
+          body: |
+            ## NekoSU ${{ github.ref_name }}
+
+            **Install order**
+
+            1. Flash the `*_kernelsu.ko` that matches your device KMI.
+            2. Install `NekoSU_*.apk` (signed with the matching key — the kernel will only
+               accept a manager with this signature).
+            3. Open the app and let it finish setup.
+
+            **Which .ko do I need?**
+
+            Run `uname -r` in a terminal (or check *Settings → About phone → Software
+            information → Kernel version*). Pick the file whose KMI prefix matches your
+            kernel branch, e.g. `android15-6.6` for a 6.6 kernel.
+
+            `SHA256SUMS.txt` contains checksums for every asset.
+
+            > NekoSU is GPL-3.0. Sources: ${{ github.server_url }}/${{ github.repository }}

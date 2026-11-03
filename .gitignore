@@ -9,3 +9,24 @@ __pycache__
 /dist
 /repack-config.json
 /userspace/ksud/.lkm_image_bootstrap.o
+
+# Signing material must never be committed
+*.jks
+*.keystore
+*.der
+key.jks
+keystore.base64.txt
+
+# Local build config
+local.properties
+manager/local.properties
+manager/gradle.properties.bak
+
+# Build output
+/manager/app/build
+/manager/baselineprofile/build
+/manager/lint-rules/build
+/manager/.gradle
+/manager/.kotlin
+/manager/app/src/main/jniLibs/arm64-v8a/libksud.so
+/out
