@@ -21,7 +21,7 @@ class ManagerUpdateRepository(
         const val REPOSITORY = "fuckingfurryvibecoder/NekoSU"
         const val WORKFLOW_FILE = "build-manager.yml"
         const val BRANCH = "main"
-        const val RELEASE_ARTIFACT = "Manager-release"
+        const val RELEASE_ARTIFACT = "NekoSU-apk"
         val GITHUB_HEADERS = mapOf("Accept" to "application/vnd.github+json")
 
         // sync with build.gradle.kts

@@ -3,4 +3,5 @@
     <color name="white">#FFFFFF</color>
     <color name="ic_launcher_foreground">#0069A8</color>
     <color name="ic_launcher_background">#DFF2FE</color>
+    <color name="ic_launcher_background_alt">#FFE3EF</color>
 </resources>

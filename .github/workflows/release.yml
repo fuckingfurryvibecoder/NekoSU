@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create (leave empty for v0.1.<run number>)"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -74,7 +79,7 @@ jobs:
   publish:
     name: Publish release
     needs: [build-lkm, build-manager]
-    if: always()
+    if: ${{ needs.build-manager.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -94,14 +99,15 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          name: NekoSU ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag != '' && inputs.tag || format('v0.1.{0}', github.run_number)) }}
+          name: NekoSU ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag != '' && inputs.tag || format('v0.1.{0}', github.run_number)) }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
             dist/*
           body: |
-            ## NekoSU ${{ github.ref_name }}
+            ## NekoSU ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag != '' && inputs.tag || format('v0.1.{0}', github.run_number)) }}
 
             **Install order**
 

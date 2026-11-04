@@ -59,6 +59,7 @@ mod android {
     pub const KSU_TEMP_BACKUP_DIR_NAME: &str = "boot_backup";
 
     pub const DEFAULT_PACKAGE_NAME: &str = env!("KSU_PACKAGE_NAME");
+    pub const MANAGER_ACTIVITY: &str = "org.bakasu.bakasu.ui.MainActivity";
 }
 
 #[allow(unused)]
