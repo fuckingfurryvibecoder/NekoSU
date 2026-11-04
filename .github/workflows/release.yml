@@ -109,18 +109,34 @@ jobs:
           body: |
             ## NekoSU ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag != '' && inputs.tag || format('v0.1.{0}', github.run_number)) }}
 
-            **Install order**
+            KernelSU-based root manager for Samsung devices (KDP / RKP / DEFEX aware).
+            The module runs in **LKM mode**: the stock kernel stays untouched, but the boot
+            image ramdisk is patched so `kernelsu.ko` loads at boot.
 
-            1. Flash the `*_kernelsu.ko` that matches your device KMI.
-            2. Install `NekoSU_*.apk` (signed with the matching key — the kernel will only
-               accept a manager with this signature).
-            3. Open the app and let it finish setup.
+            **Requirements**
 
-            **Which .ko do I need?**
+            - Unlocked bootloader. On Samsung this permanently trips Knox.
+            - The `.ko` that matches your kernel branch.
 
-            Run `uname -r` in a terminal (or check *Settings → About phone → Software
-            information → Kernel version*). Pick the file whose KMI prefix matches your
-            kernel branch, e.g. `android15-6.6` for a 6.6 kernel.
+            **Install**
+
+            1. Check your kernel version: `adb shell uname -r`, or *Settings → About phone →
+               Software information → Kernel version*. Pick the `.ko` with the matching KMI
+               prefix, e.g. `android15-6.6` for a 6.6 kernel.
+            2. Patch your boot image on a PC:
+
+               ```sh
+               ksud boot-patch --boot-image boot.img --kernel androidXX-Y.Z_kernelsu.ko --out patched.img
+               ```
+
+            3. Flash `patched.img` to the `boot` partition (Odin / `fastboot flash boot`).
+            4. Install `NekoSU_*.apk`. Do not re-sign it — the kernel only trusts the
+               NekoSU certificate.
+            5. Reboot, open the app, verify with `su -c id`.
+
+            > `insmod kernelsu.ko` only works if you already have root; it is not a way to
+            > gain it. Non-GKI kernels (4.14 / 4.19) cannot load an LKM at all and need
+            > KernelSU built into the kernel image.
 
             `SHA256SUMS.txt` contains checksums for every asset.
 

@@ -1,82 +1,85 @@
-# Putting NekoSU on GitHub
+# How the GitHub side works
 
-You only need to do **two** things: create an empty repository, and add four secrets.
-Everything else is already prepared — the workflows build the signed APK **and**
-`kernelsu.ko` for every supported KMI, then publish a release.
-
----
-
-## 1. Create the repository
-
-1. Open <https://github.com/new>
-2. **Repository name**: `NekoSU`
-3. **Owner**: your account
-4. **Visibility**: `Public` (required — GPL-3.0)
-5. **Do NOT** check any of: *Add a README*, *Add .gitignore*, *Choose a license*
-   (the repository must be completely empty)
-6. Click **Create repository**
-7. Copy the URL — it looks like `https://github.com/YOUR-NAME/NekoSU.git`
+The repository already exists at
+<https://github.com/fuckingfurryvibecoder/NekoSU>, the signing secrets are
+configured, and the first release is published. This page explains how the
+automation fits together and how to cut the next release.
 
 ---
 
-## 2. Push the code
+## What lives where
 
-In a terminal (PowerShell) on this PC:
+| Path | What it does |
+| :--- | :--- |
+| `.github/workflows/release.yml` | The full release: signing info → 8 `.ko` builds → ksud → signed APK → publish |
+| `.github/workflows/build-manager.yml` | APK only (runs on pushes that touch `manager/`) |
+| `.github/workflows/ksud.yml` | Builds the root daemon (`libksud.so`) |
+| `.github/workflows/ddk-lkm.yml` | Reusable: builds one `.ko` inside a DDK container |
+| `kernel/` | The Samsung-capable KernelSU module (coded for uapi v5) |
+| `userspace/ksud/` | The Rust daemon bundled into the APK |
+| `manager/` | The Android app (BakaSU UI, package `dev.nekosu`) |
 
-```powershell
-cd "C:\Users\1\Documents\Типовий проєкт\NekoSU"
-git remote set-url origin https://github.com/YOUR-NAME/NekoSU.git
-git push -u origin main
+---
+
+## The signing key ties the APK to the kernel
+
+The kernel module only treats an app as *the manager* if the app is signed with
+the right certificate. That certificate's size and SHA-256 are compiled into
+`kernelsu.ko`:
+
+```
+kernel/Kbuild
+  KSU_PACKAGE_NAME = dev.nekosu
+  KSU_EXPECTED_SIZE = 0x348
+  KSU_EXPECTED_HASH = d67570ba…11776
 ```
 
-The first push opens a browser window from Git Credential Manager — log in to GitHub
-and allow access. No token or CLI needed.
+The CI takes the keystore from repository secrets, exports the certificate, and
+feeds the real size/hash into the kernel build. So:
 
-> If Git asks for a password: GitHub no longer accepts account passwords.
-> Use **Personal access token** instead: GitHub → Settings → Developer settings →
-> Personal access tokens → Tokens (classic) → Generate new token → scope `repo`,
-> then paste it as the password.
+- **Never commit** `neko.jks` — it is git-ignored.
+- **Back it up.** If it is lost, every `.ko` must be rebuilt and every user must
+  reinstall.
+- **Never re-sign** the released APK; a re-signed build is not the manager.
 
----
+### Repository secrets
 
-## 3. Add the signing secrets
-
-The APK must be signed with the key whose certificate hash is compiled into
-`kernelsu.ko`. Otherwise the kernel refuses to treat the app as the manager.
-
-Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+**Settings → Secrets and variables → Actions → New repository secret**
 
 | Name | Value |
 | :--- | :--- |
-| `KEYSTORE` | the whole contents of `NekoSU-keys\keystore.base64.txt` (one long line, ~3.5 KB) |
-| `KEYSTORE_PASSWORD` | `nekosu2026` |
+| `KEYSTORE` | base64 of `neko.jks` (`NekoSU-keys\keystore.base64.txt`) |
+| `KEYSTORE_PASSWORD` | keystore password |
 | `KEY_ALIAS` | `neko` |
-| `KEY_PASSWORD` | `nekosu2026` |
-
-`KEYSTORE` is the **base64** of `NekoSU-keys\neko.jks`. Do not commit the `.jks`
-itself — it is already in `.gitignore`.
-
-> ⚠️ Back up `NekoSU-keys\neko.jks`. If you lose it you must generate a new key,
-> rebuild `kernelsu.ko` and reinstall everything.
+| `KEY_PASSWORD` | key password |
 
 ---
 
-## 4. Build a release
+## Building a release
 
-Either:
+### Option A — from the GitHub website
 
-- **Actions → Release → Run workflow**, or
-- push a tag:
+1. Open **Actions → Release**.
+2. Click **Run workflow**, enter a tag such as `v1.0.1` (leave empty for an
+   automatic `v0.1.<run>` tag), then **Run workflow**.
+3. Wait ~20–30 minutes. The **publish** job creates the release only if the APK
+   job succeeded.
+
+### Option B — from a terminal
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+cd "C:\Users\1\Documents\Типовий проєкт\NekoSU"
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
-After ~20–30 minutes you get a release with:
+Pushing a `v*` tag starts `release.yml` with `github.ref_type == tag`, so the
+release is named after the tag automatically.
+
+### What you get
 
 ```
-NekoSU_<tag>_<code>-release.apk
+NekoSU_v1.0.0_33395-release.apk
 android12-5.10_kernelsu.ko
 android13-5.10_kernelsu.ko
 android13-5.15_kernelsu.ko
@@ -90,28 +93,51 @@ SHA256SUMS.txt
 
 ---
 
-## 5. Install on the phone
+## Installing on the phone
 
-Only the `.ko` that matches your kernel will load. Check the kernel first:
+KernelSU runs in **LKM mode**: the stock kernel is untouched, but the boot image
+ramdisk is patched so `kernelsu.ko` loads at boot. This needs an unlocked
+bootloader — on Samsung that permanently trips Knox.
 
-```sh
-adb shell uname -r
-```
+1. Find the kernel version:
 
-Then:
+   ```sh
+   adb shell uname -r
+   ```
 
-```sh
-su -c 'insmod /data/local/tmp/androidXX-X.XX_kernelsu.ko'
-```
+   or *Settings → About phone → Software information → Kernel version*.
+   Choose the `.ko` whose KMI prefix matches, e.g. `android15-6.6` for a 6.6
+   kernel.
 
-and install the APK. Do **not** re-sign the APK with a different key.
+2. Patch the boot image on a PC:
+
+   ```sh
+   ksud boot-patch --boot-image boot.img --kernel android15-6.6_kernelsu.ko --out patched.img
+   ```
+
+3. Flash `patched.img` to the `boot` partition (Odin, or
+   `fastboot flash boot patched.img`).
+
+4. Install the APK. Do **not** re-sign it.
+
+5. Reboot and verify:
+
+   ```sh
+   su -c id     # → uid=0(root)
+   ```
+
+> `insmod kernelsu.ko` only works when root already exists. It is not a way to
+> gain root on a stock device.
+
+> Non-GKI kernels (4.14 / 4.19) cannot load an LKM at all. They need KernelSU
+> built into the kernel image instead — see [samsung.md](samsung.md).
 
 ---
 
-## Updating the update-checker links
+## Updating the app's self-update links
 
-Two places contain the repository path, replace `fuckingfurryvibecoder/NekoSU` with your real
-`owner/name`:
-
-- `manager/app/src/main/java/org/bakasu/bakasu/data/update/ManagerUpdateRepository.kt` → `REPOSITORY`
-- `manager/app/src/main/java/org/bakasu/bakasu/ui/screen/about/About.kt` → two `openUri(...)` URLs
+If the repository is ever renamed, update `REPOSITORY` in
+`manager/app/src/main/java/org/bakasu/bakasu/data/update/ManagerUpdateRepository.kt`
+and the two `openUri(...)` URLs in
+`manager/app/src/main/java/org/bakasu/bakasu/ui/screen/about/About.kt`.
+Both already point at `fuckingfurryvibecoder/NekoSU`.
