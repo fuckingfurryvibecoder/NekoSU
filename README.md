@@ -70,17 +70,30 @@ adb shell uname -r
 
 ## Installation
 
+KernelSU LKM mode replaces the boot image: the stock kernel is untouched, but `ksuinit`
+and `kernelsu.ko` are injected into the ramdisk so they are loaded at boot. You therefore
+need an **unlocked bootloader** (on Samsung this also trips Knox permanently).
+
 1. **Download** the `.ko` that matches your KMI and **`NekoSU_*.apk`** from
    [Releases](../../releases/latest).
-2. **Install the APK.** Do not replace it with a re-signed build: the kernel only trusts
-   APKs signed with the NekoSU certificate.
-3. **Load the module**, then open the app and let it finish setup:
+2. **Patch your boot image** with `ksud boot-patch` on a PC (or let the manager's install
+   flow do it on-device):
 
 ```sh
-su -c 'insmod /data/local/tmp/android15-6.6_kernelsu.ko'
+# from the device's own boot.img dump
+ksud boot-patch --boot-image boot.img --kernel kernelsu.ko --out patched.img
 ```
 
-4. Reboot and verify with `su -c id` → `uid=0(root)`.
+3. **Flash `patched.img`** to the `boot` partition (Odin / `fastboot flash boot` / Heimdall).
+4. **Install the APK.** Do not re-sign it — the kernel only trusts APKs signed with the
+   NekoSU certificate.
+5. Reboot, open the app and verify with `su -c id` → `uid=0(root)`.
+
+> `insmod kernelsu.ko` only works if you **already** have root; it is not a way to gain
+> root on a stock device. Use the boot-image flow above.
+
+> **Non-GKI devices** (older Samsung kernels such as 4.14 / 4.19) cannot load an LKM at
+> all and must build KernelSU into the kernel image — see [docs/samsung.md](docs/samsung.md).
 
 ---
 
@@ -156,8 +169,12 @@ use BakaSU's All-Rights-Reserved artwork.
 
 1. Завантаж `*_kernelsu.ko`, що відповідає твоєму ядру (дивись *Налаштування → Про телефон
    → Версія ядра*), і `NekoSU_*.apk`.
-2. Встанови APK. Не перепідписуй його іншим ключем — ядро приймає лише підпис NekoSU.
-3. Завантаж модуль: `su -c 'insmod /data/local/tmp/<файл>.ko'`.
-4. Перезавантаж і перевір: `su -c id`.
+2. Пропатч boot-образ: `ksud boot-patch --boot-image boot.img --kernel kernelsu.ko --out patched.img`.
+3. Проший `patched.img` у розділ `boot` (Odin / `fastboot flash boot`).
+4. Встанови APK. Не перепідписуй його іншим ключем — ядро приймає лише підпис NekoSU.
+5. Перезавантаж і перевір: `su -c id`.
+
+Для цього потрібен **розблокований bootloader** — на Samsung це назавжди активує Knox.
+`insmod` працює лише якщо root уже є; це не спосіб його отримати.
 
 Збірка — через GitHub Actions, тегом `v1.0.0`. Усі зміни та сирці відкриті, ліцензія GPL-3.0.
