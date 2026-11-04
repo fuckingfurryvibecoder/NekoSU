@@ -6,6 +6,14 @@
 
 #include "uapi/app_profile.h"
 
+/*
+ * NekoSU: this kernel module exposes the uapi v5 supercalls only. The manager
+ * UI (inherited from BakaSU) also speaks the downstream v6 commands; they are
+ * declared in manager/app/src/main/cpp/ksu_compat.h. Bump this to 1 once the
+ * kernel implements them.
+ */
+#define KSU_UAPI_DOWNSTREAM_SUPERCALLS 0
+
 // 2: allowlist v4 root profile flags
 // 3: scoped su-session driver fd
 // 4: add KSU_GET_INFO_FLAG_BUNDLED

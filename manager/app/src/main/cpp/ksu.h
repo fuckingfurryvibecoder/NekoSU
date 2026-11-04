@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 
 #include "uapi/ksu.h"
+#include "ksu_compat.h"
 
 uint32_t get_kernel_uapi_version();
 
